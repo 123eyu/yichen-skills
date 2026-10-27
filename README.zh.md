@@ -27,7 +27,7 @@
 
 1. 把 Obsidian/Markdown 长文上传为 X Articles 草稿（`yichen-x-article-draft-uploader`）
 2. Mac 微信双开，第二个微信带蓝色图标（`yichen-mac-wechat-dual-open`）
-3. 从微信聊天、朋友圈、收藏夹沉淀 AI 数字资产（`yichen-wechat-local-vault`）
+3. 从 macOS/Windows 微信聊天，以及 Mac 朋友圈、收藏夹沉淀 AI 数字资产（`yichen-wechat-local-vault`）
 4. 抓取已知抖音链接的对标视频（`yichen-content-archive`）
 5. 抓取已知小红书链接的对标笔记（`yichen-content-archive`）
 6. 用火山 ASR 做转写、字幕和口播粗剪（`yichen-volc-asr`）
@@ -87,17 +87,15 @@ Mac 微信双开——无需第三方工具，一条命令搞定：
 
 ### `yichen-wechat-local-vault`
 
-统一 CLI 现已整合实验性的 Windows 明文快照查询，通过 `snapshot --snapshot <目录>` 使用，详见 [快照说明](./yichen-wechat-local-vault/references/windows-snapshot.md)。
-微信数字资产沉淀助手（macOS 专属）：
-- 解密微信 Mac 4.x 本地 SQLCipher 数据库（AES-256-CBC）
-- 提取聊天记录、朋友圈（`sns.db`）和收藏夹（`favorite.db`）
-- 生成群聊解析、朋友圈解析、收藏夹整理、客户跟进和大佬对话复盘草案
-- 首次引导展示三大类九种玩法：聊天记录、朋友圈、收藏夹
-- 可配置监控指定群聊、联系人、朋友圈对象和收藏夹整理偏好
-- 首次使用通过 frida 引导密钥提取
-- 常见触发词：”微信解析”、”微信全量”、”微信增量”、”导出聊天”、”朋友圈解析”、”收藏夹整理”、”客户跟进”、”yichen-wechat-local-vault”
-- 依赖：macOS、微信 Mac 4.x、Python 3.9+、`pycryptodome`、`zstandard`
-- 详细文档见 [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md)
+同一个本地 Skill 支持 macOS 与实验性 Windows 聊天工作流：
+- macOS：微信 Mac 4.x 全量/增量解密，聊天、朋友圈、收藏夹、摘要和漏看/待回复检查
+- Windows：`windows discover/capture` 只读明确选择且已授权的本机账号和签名通过的微信进程，逐页认证/解密聊天库，并结合 WAL 已提交事务生成私密快照
+- `snapshot --snapshot <目录>` 验证、查询、搜索和导出明确提供的 Windows 明文快照，不访问运行中的客户端，也不触发 Mac 流程
+- 已在 Windows 11 build 26300 ARM64、AMD64 微信 4.1.15.56、CPython 3.12.10 AMD64 环境完成两条真实新消息、刷新、搜索、Markdown 导出回读及中文路径验收
+- Windows 实测使用已有的桌面管理员令牌；普通非管理员执行、其他版本/客户端架构，以及媒体解密、朋友圈和收藏功能尚未验收或不支持
+- 不操作微信界面；Windows 登录和测试消息由用户手动完成
+- Mac 依赖：Python 3.9+、`pycryptodome`、`zstandard`；Windows 使用 CPython 3.12 AMD64、系统 CNG 和固定版本的 `zstandard`
+- 详见 [Skill 说明](./yichen-wechat-local-vault/README.md)、[Windows 本机采集](./yichen-wechat-local-vault/references/windows-live.md)和[离线快照](./yichen-wechat-local-vault/references/windows-snapshot.md)
 
 ### 已融合进 `yichen-content-archive` 的社交平台抓取器
 原先独立的抖音和小红书抓取器现在只保留一个事实源：
@@ -396,7 +394,7 @@ yichen-skills/
 - Python 3.9+
 - 依赖：
   - X 文章草稿：`pip install playwright pycryptodome && python3 -m playwright install chromium`
-  - 微信本地解析：`pip install pycryptodome zstandard`
+  - 微信本地解析：Mac 使用 `pycryptodome zstandard`；Windows 使用系统 CNG 与[固定的 CPython 3.12 AMD64 依赖](./yichen-wechat-local-vault/references/windows-live.md)
   - 微信双开：`pip install Pillow`
   - 内容归档（抖音）：`pip install playwright requests && python3 -m playwright install chromium`
   - 内容归档（小红书）：`pip install requests`
@@ -464,12 +462,11 @@ codex plugin add yichen-grok-consult@yichen-skills
 
 ### D）启用 `yichen-wechat-local-vault`
 
-1. 安装 Python 依赖：`pip3 install pycryptodome zstandard`
-2. 在 Claude Code 或 Codex 中说"微信解析"、"导出聊天"或"收藏夹整理"
-3. 首次运行会引导你完成密钥提取，并从九种玩法里选择当前要启用的工作流
-4. 如果不确定，默认从"聊天记录解析 + 朋友圈解析 + 收藏夹整理"开始
-5. 后续使用自动生成对应的解析报告或草案
-6. 详细说明见 [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md)
+1. 先确定来源：Mac 本机 vault、Windows 本机采集，或明确提供的 Windows 脱机明文快照。
+2. Mac 安装 `pycryptodome zstandard`，再提出聊天解析、导出、朋友圈或收藏夹需求，按现有 Mac 流程完成配置与工作流选择。
+3. Windows 使用 CPython 3.12 AMD64，并按 [Windows 本机采集说明](./yichen-wechat-local-vault/references/windows-live.md)安装固定依赖。用户手动登录后，用 `windows discover` 选择已授权来源，再 `windows capture` 采集新消息。
+4. Windows 查询、搜索和导出走 `snapshot`；它本身不刷新数据，依赖最新消息时必须重新采集。
+5. 详见 [Skill 说明](./yichen-wechat-local-vault/README.md)中的平台命令、私密输出路径及已验收的权限和版本范围。
 
 ### E）启用自媒体视频工作流
 

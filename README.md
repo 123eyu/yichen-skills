@@ -27,7 +27,7 @@ Join **TradeWinds**, Yichen’s paid community, to unlock commercial authorizati
 
 1. Upload Obsidian/Markdown articles to X Articles drafts (`yichen-x-article-draft-uploader`)
 2. Run two WeChat accounts on one Mac with a distinct blue icon (`yichen-mac-wechat-dual-open`)
-3. Turn WeChat chats, Moments, and Favorites into AI-powered digital assets (`yichen-wechat-local-vault`)
+3. Turn macOS/Windows WeChat chats, plus Mac Moments and Favorites, into AI-powered digital assets (`yichen-wechat-local-vault`)
 4. Fetch benchmark videos from known Douyin links (`yichen-content-archive`)
 5. Fetch benchmark posts from known Xiaohongshu links (`yichen-content-archive`)
 6. Transcribe, caption, and rough-cut talking-head videos with Volcengine ASR (`yichen-volc-asr`)
@@ -87,17 +87,15 @@ Run two WeChat accounts simultaneously on macOS — no third-party tools:
 
 ### `yichen-wechat-local-vault`
 
-The unified CLI also supports experimental Windows plaintext snapshots through `snapshot --snapshot <directory>`. See the [snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md).
-WeChat digital-asset assistant for macOS:
-- Decrypts WeChat Mac 4.x local SQLCipher databases (AES-256-CBC)
-- Extracts chats, Moments (`sns.db`), and Favorites (`favorite.db`)
-- Generates AI-powered chat digests, Moments reports, Favorites cleanup notes, customer follow-up drafts, and relationship review prompts
-- First-time onboarding introduces 3 categories and 9 playbooks: chat records, Moments, and Favorites
-- Configurable monitoring for groups, contacts, Moments targets, and Favorites cleanup preferences
-- First-time setup guided via frida key extraction
-- Typical triggers: "微信解析", "微信全量", "微信增量", "导出聊天", "朋友圈解析", "收藏夹整理", "客户跟进", "yichen-wechat-local-vault"
-- Requirements: macOS, WeChat Mac 4.x, Python 3.9+, `pycryptodome`, `zstandard`
-- See [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md) for full documentation
+One local Skill for macOS and experimental Windows chat workflows:
+- macOS: full/incremental decryption of WeChat Mac 4.x databases, chats, Moments, Favorites, digests, and missed/reply-pending checks
+- Windows: `windows discover/capture` reads an explicitly selected, authorized local account and signed Weixin process, authenticates/decrypts chat databases, and creates a private snapshot with committed WAL transactions
+- `snapshot --snapshot <directory>` validates, queries, searches, and exports an explicit Windows plaintext snapshot without accessing a running client or triggering Mac workflows
+- Real Windows acceptance passed for two newly sent messages, refresh, search, Markdown export/readback, and Unicode output paths on Windows 11 build 26300 ARM64 with AMD64 WeChat 4.1.15.56 and CPython 3.12.10 AMD64
+- Windows acceptance used an existing desktop administrator token; ordinary non-administrator execution, other client versions/architectures, media decryption, Moments, and Favorites remain unverified or unsupported
+- Does not operate the WeChat UI; Windows login and test messages are performed manually by the user
+- Mac dependencies: Python 3.9+, `pycryptodome`, `zstandard`; Windows uses CPython 3.12 AMD64, native Windows CNG, and the pinned `zstandard` dependency
+- See the [Skill README](./yichen-wechat-local-vault/README.md), [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md), and [snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md)
 
 ### Social fetchers integrated into `yichen-content-archive`
 The former standalone Douyin and Xiaohongshu fetchers now have one source of truth:
@@ -396,7 +394,7 @@ yichen-skills/
 - Python 3.9+
 - Dependencies:
   - X article drafts: `pip install playwright pycryptodome && python3 -m playwright install chromium`
-  - WeChat local vault: `pip install pycryptodome zstandard`
+  - WeChat local vault: macOS uses `pycryptodome zstandard`; Windows uses native CNG and [pinned CPython 3.12 AMD64 dependencies](./yichen-wechat-local-vault/references/windows-live.md)
   - WeChat dual open: `pip install Pillow`
   - Content archive (Douyin): `pip install playwright requests && python3 -m playwright install chromium`
   - Content archive (Xiaohongshu): `pip install requests`
@@ -464,12 +462,11 @@ codex plugin add yichen-grok-consult@yichen-skills
 
 ### D) Enable `yichen-wechat-local-vault`
 
-1. Install Python dependencies: `pip3 install pycryptodome zstandard`
-2. In Claude Code or Codex, say "微信解析", "导出聊天", or "收藏夹整理"
-3. First run will guide you through key extraction and choosing among the 9 playbooks
-4. If unsure, start with the recommended trio: group chat digest + Moments report + Favorites cleanup
-5. Subsequent runs generate the selected digest, report, or draft workflow
-6. See [yichen-wechat-local-vault/README.md](./yichen-wechat-local-vault/README.md) for details
+1. Choose the source first: macOS local vault, Windows local acquisition, or an explicit detached Windows plaintext snapshot.
+2. On macOS, install `pycryptodome zstandard`, then ask for chat parsing, export, Moments, or Favorites. The Skill guides the existing Mac setup and workflow selection.
+3. On Windows, use CPython 3.12 AMD64 and the pinned dependency in the [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md). Log in manually, select the authorized source with `windows discover`, and run `windows capture` before querying new messages.
+4. Use the `snapshot` route for Windows query/search/export. It does not refresh data; capture again when current messages are required.
+5. See the [Skill README](./yichen-wechat-local-vault/README.md) for platform-specific commands, privacy paths, and tested permission/version limits.
 
 ### E) Enable the creator video workflow
 

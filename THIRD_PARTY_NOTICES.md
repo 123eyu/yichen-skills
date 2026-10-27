@@ -157,7 +157,7 @@ This repository references and adapts ideas/workflows from external projects.
 - This repository maintains its own license (`LICENSE`) for original contributions. It is personal-learning and non-commercial only.
 - The upstream projects listed above retain their original licenses and copyrights.
 - Upstream licenses and notices should be preserved when redistributing derived works.
-- `yichen-wechat-local-vault` is an independent implementation that adapts specific technical approaches from `wx-favorites-report`. It does not contain any code directly copied from the upstream project.
+- `yichen-wechat-local-vault` adapts Mac technical approaches from `wx-favorites-report` and includes selected MIT-licensed Windows source adaptations from `TANGandXUE/wcdb-key-tool` and `freanocank/wechat-decrypt`. Pinned commits, reviewed source hashes, retained license texts, and the exact adaptation scope are recorded in [Windows acquisition provenance](./yichen-wechat-local-vault/references/windows-live/PROVENANCE.md). Existing snapshot provenance remains in [Windows snapshot provenance](./yichen-wechat-local-vault/references/windows-snapshot/PROVENANCE.md).
 - `yichen-wechat-mp-batch-exporter` references workflows from `wechat-article-exporter` and `wxdown-service`, but does not include their source code, credentials, cached browser data, or downloaded article archives.
 - `yichen-x-article-draft-uploader` references workflow and Markdown parsing ideas from `wshuyi/x-article-publisher-skill`; it stores no real credentials in source control and writes exported X cookies only to a private local file with restricted permissions.
 - The broader skill packaging conventions reference public Claude skill community practices, including JimLiu/baoyu-skills.
