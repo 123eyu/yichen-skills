@@ -1,6 +1,6 @@
 # Windows 离线明文快照模式
 
-此模式适用于用户已授权并明确提供的 Windows 微信明文 SQLite 快照。`snapshot` 是本 Skill 的子模块，不需要另装 `yichen-wechat-windows-reader`。它可以在当前 Mac 上处理离线快照；支持范围仍限于验证器接受的结构，未证明全面兼容真实 Windows 微信 4.x。
+此模式适用于用户已授权并明确提供的 Windows 微信明文 SQLite 快照。`snapshot` 已整合在统一 Skill 中，通过 `scripts/vault_cli.py snapshot` 使用。它可以在当前 Mac 上处理离线快照；支持范围仍限于验证器接受的结构，未证明全面兼容真实 Windows 微信 4.x。
 
 ## 与 Mac 模式的区别
 
