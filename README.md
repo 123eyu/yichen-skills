@@ -76,9 +76,10 @@ Run two WeChat accounts simultaneously on macOS — no third-party tools:
 One local Skill for macOS and experimental Windows chat workflows:
 - macOS: full/incremental decryption of WeChat Mac 4.x databases, chats, Moments, Favorites, digests, and missed/reply-pending checks
 - Windows: `windows discover/capture` reads an explicitly selected, authorized local account and signed Weixin process, authenticates/decrypts chat databases, and creates a private snapshot with committed WAL transactions
+- Explicit full local capture uses `windows capture --scope all`, including Favorites, Moments, and media databases; every page must authenticate, and known search-index integrity gaps are reported explicitly
 - `snapshot --snapshot <directory>` validates, queries, searches, and exports an explicit Windows plaintext snapshot without accessing a running client or triggering Mac workflows
 - Real Windows acceptance passed for two newly sent messages, refresh, search, Markdown export/readback, and Unicode output paths on Windows 11 build 26300 ARM64 with AMD64 WeChat 4.1.15.56 and CPython 3.12.10 AMD64
-- Windows acceptance used an existing desktop administrator token; ordinary non-administrator execution, other client versions/architectures, media decryption, Moments, and Favorites remain unverified or unsupported
+- Windows acceptance used an existing desktop administrator token; ordinary non-administrator execution, other client versions/architectures, media-file restoration, and complete Mac workflow parity remain unverified or unsupported. Dedicated Windows Moments/Favorites query commands are not included
 - Does not operate the WeChat UI; Windows login and test messages are performed manually by the user
 - Mac dependencies: Python 3.9+, `pycryptodome`, `zstandard`; Windows uses CPython 3.12 AMD64, native Windows CNG, and the pinned `zstandard` dependency
 - See the [Skill README](./yichen-wechat-local-vault/README.md), [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md), and [snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md)

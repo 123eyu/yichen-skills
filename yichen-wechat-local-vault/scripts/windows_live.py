@@ -32,7 +32,7 @@ def source_id(root):
     return hashlib.sha256(os.fsencode(str(root).casefold())).hexdigest()[:16]
 
 
-def selected_files(root):
+def selected_files(root, scope="chat"):
     root = _secure_existing_path(root, label="authorized db_storage", expected="directory")
     if root.name.casefold() != "db_storage":
         raise ValueError("The source must be an explicit db_storage directory")
@@ -41,6 +41,22 @@ def selected_files(root):
     selected.extend(sorted(path for path in message.iterdir() if MESSAGE_RE.fullmatch(path.name)))
     if len(selected) < 3:
         raise ValueError("No chat message shard is available in this account")
+    if scope not in ("chat", "all"):
+        raise ValueError("Unsupported capture scope")
+    if scope == "all":
+        selected, pending, visited = [], [root], 0
+        while pending:
+            directory = _secure_existing_path(pending.pop(), label="source directory", expected="directory", allowed_root=root)
+            visited += 1
+            if visited > 256 or len(directory.relative_to(root).parts) > 8:
+                raise ValueError("Source directory traversal exceeds the capture bounds")
+            for path in sorted(directory.iterdir()):
+                if path.is_dir():
+                    pending.append(path)
+                elif path.suffix.casefold() == ".db":
+                    selected.append(_secure_existing_path(path, label="source database", expected="file", allowed_root=root))
+            if len(selected) > 258:
+                raise ValueError("Too many databases for one capture")
     if len(selected) > 258:
         raise ValueError("Too many message shards for one capture")
     return [_secure_existing_path(path, label="source database", expected="file", allowed_root=root) for path in selected]
@@ -152,8 +168,10 @@ def extract_keys(files, pids, seconds=90):
     return keys, statistics
 
 
-def capture(root, files, pids, *, max_bytes, seconds):
+def capture(root, files, pids, *, max_bytes, seconds, scope="chat"):
     from windows_native import secure_output_root
+    if scope not in ("chat", "all"):
+        raise ValueError("Unsupported capture scope")
     vault = secure_output_root(private_root())
     identifier = str(uuid.uuid4())
     # New directory per attempt: an incomplete capture never replaces a good one.
@@ -162,7 +180,7 @@ def capture(root, files, pids, *, max_bytes, seconds):
     output.mkdir(exist_ok=False)
     output = _secure_existing_path(output, label="new snapshot", expected="directory", allowed_root=vault)
     started = datetime.now(timezone.utc).isoformat()
-    records, keys = [], {}
+    records, keys, integrity_gaps = [], {}, []
     try:
         keys, statistics = extract_keys(files, pids, seconds)
         for path in files:
@@ -182,17 +200,27 @@ def capture(root, files, pids, *, max_bytes, seconds):
                 target.write(plain)
                 target.flush()
                 os.fsync(target.fileno())
-            with connect_read_only(destination) as con:
-                checks = con.execute("PRAGMA integrity_check").fetchall()
-                if len(checks) != 1 or checks[0][0] != "ok":
-                    raise ValueError("Decrypted database failed SQLite integrity_check")
-            records.append({"database": relative.as_posix(), "pages": len(data) // PAGE, "authenticated": True, "encrypted_snapshot_sha256": hashlib.sha256(data).hexdigest(), "plaintext_sha256": hashlib.sha256(plain).hexdigest()})
-        manifest = {"snapshot_id": identifier, "profile": PROFILE, "captured_at": datetime.now(timezone.utc).isoformat(), "capture_started_at": started, "capture_consistency": "per-database stable main/WAL pair, committed frames only; not an account-wide atomic transaction", "source_id": source_id(root), "databases": records}
+            integrity = "passed"
+            try:
+                with connect_read_only(destination) as con:
+                    checks = con.execute("PRAGMA integrity_check").fetchall()
+                    if len(checks) != 1 or checks[0][0] != "ok":
+                        raise ValueError("Decrypted database failed SQLite integrity_check")
+            except sqlite3.OperationalError as exc:
+                # Only the observed optional FTS-index check is recorded as a gap.
+                # Authentication is still mandatory; no main data check is waived.
+                optional_indexes = {"contact/contact_fts.db", "favorite/favorite_fts.db", "message/message_fts.db"}
+                if scope != "all" or relative.as_posix() not in optional_indexes or str(exc) != "SQL logic error":
+                    raise
+                integrity = "unverified"
+                integrity_gaps.append({"database": relative.as_posix(), "reason": "SQLite integrity_check returned SQL logic error"})
+            records.append({"database": relative.as_posix(), "pages": len(data) // PAGE, "authenticated": True, "sqlite_integrity": integrity, "encrypted_snapshot_sha256": hashlib.sha256(data).hexdigest(), "plaintext_sha256": hashlib.sha256(plain).hexdigest()})
+        manifest = {"snapshot_id": identifier, "profile": "full-snapshot-v1" if scope == "all" else PROFILE, "captured_at": datetime.now(timezone.utc).isoformat(), "capture_started_at": started, "capture_consistency": "per-database stable main/WAL pair, committed frames only; not an account-wide atomic transaction", "source_id": source_id(root), "databases": records, "integrity_gaps": integrity_gaps}
         atomic_json(output / "snapshot-manifest.json", manifest)
         validation = validate_snapshot(output)
         if not validation["valid"]:
             raise ValueError("Captured chat schema is not supported by the snapshot reader")
-        receipt = {"status": "complete", "snapshot_id": identifier, "snapshot": str(output), "source_id": source_id(root), "databases": len(records), "authenticated_pages": sum(item["pages"] for item in records), "validation": "passed", "read_only_source": True, "keys_persisted": False, "scan": statistics}
+        receipt = {"status": "complete_with_index_gaps" if integrity_gaps else "complete", "scope": scope, "snapshot_id": identifier, "snapshot": str(output), "source_id": source_id(root), "databases": len(records), "authenticated_pages": sum(item["pages"] for item in records), "validation": "passed_core_with_index_gaps" if integrity_gaps else "passed", "integrity_gaps": integrity_gaps, "read_only_source": True, "keys_persisted": False, "scan": statistics}
         atomic_json(vault / "latest.json", receipt)
         return receipt
     except BaseException:
@@ -209,6 +237,7 @@ def main(argv=None):
         command = sub.add_parser(name)
         command.add_argument("--db-root", help="Explicit local db_storage directory, including a moved data directory")
         if name == "capture":
+            command.add_argument("--scope", choices=("chat", "all"), default="chat", help="chat databases (default), or all local account databases")
             command.add_argument("--source-id")
             command.add_argument("--pid", action="append", type=int)
             command.add_argument("--max-db-mib", type=int, default=512)
@@ -225,10 +254,12 @@ def main(argv=None):
             result = {"accounts": [{"source_id": source_id(root), "chat_databases": len(files)} for root, files in candidates], "weixin_processes": pids, "memory_read": False}
         else:
             root, files = choose_source(candidates, args.source_id)
+            if args.scope == "all":
+                files = selected_files(root, scope="all")
             selected = args.pid or pids
             if not selected or any(pid not in pids for pid in selected):
                 raise ValueError("An authorized running Weixin.exe process is required")
-            result = capture(root, files, selected, max_bytes=args.max_db_mib * 1024**2, seconds=args.seconds)
+            result = capture(root, files, selected, max_bytes=args.max_db_mib * 1024**2, seconds=args.seconds, scope=args.scope)
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:

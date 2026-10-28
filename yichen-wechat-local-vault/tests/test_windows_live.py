@@ -244,18 +244,18 @@ class WindowsLiveTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             live.choose_source([(self.root / "one", []), (self.root / "two", [])], None)
 
-    def capture_fixture(self):
+    def capture_fixture(self, scope="chat"):
         plain = self.root / "plain"
         fixture = build(plain, first_message="WINDOWS_SYNTHETIC_CAPTURE_MARKER")
         source = self.root / "source/db_storage"
-        for path in live.selected_files(plain.rename(self.root / "db_storage")):
+        for path in live.selected_files(plain.rename(self.root / "db_storage"), scope=scope):
             reserve_database(path)
             destination = source / path.relative_to(self.root / "db_storage")
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(encrypt_database(path.read_bytes()))
         return source, fixture
 
-    def run_capture_fixture(self, source, vault, extractor=None):
+    def run_capture_fixture(self, source, vault, extractor=None, scope="chat"):
         import windows_native
         def private_directory(path):
             path.mkdir(parents=True, exist_ok=True)
@@ -266,7 +266,77 @@ class WindowsLiveTests(unittest.TestCase):
                 stack.enter_context(mock.patch.object(windows_native, "secure_output_root", side_effect=private_directory))
             stack.enter_context(mock.patch.object(live, "extract_keys", side_effect=extractor or (lambda *args: ({SALT.hex(): KEY.hex()}, []))))
             stack.enter_context(mock.patch.object(live, "decrypt_pages", side_effect=lambda data, key: crypto.decrypt_pages(data, key, aes_factory=TestAES)))
-            return live.capture(source, live.selected_files(source), [999999], max_bytes=1024**2, seconds=1)
+            return live.capture(source, live.selected_files(source, scope=scope), [999999], max_bytes=1024**2, seconds=1, scope=scope)
+
+    def test_full_scope_captures_required_domains_and_retains_chat_default(self):
+        source, _ = self.capture_fixture(scope="all")
+        default_files = {p.relative_to(source).as_posix() for p in live.selected_files(source)}
+        all_files = {p.relative_to(source).as_posix() for p in live.selected_files(source, scope="all")}
+        self.assertNotIn("favorite/favorite.db", default_files)
+        self.assertTrue(set(reader.REQUIRED_DATABASES).issubset(all_files))
+        before = {p: p.read_bytes() for p in source.rglob("*.db")}
+        receipt = self.run_capture_fixture(source, self.root / "vault", scope="all")
+        self.assertEqual(receipt["status"], "complete")
+        self.assertEqual(receipt["scope"], "all")
+        snapshot = Path(receipt["snapshot"])
+        self.assertEqual(reader._read_manifest(snapshot)["profile"], "full-snapshot-v1")
+        self.assertTrue(reader.validate_snapshot(snapshot)["valid"])
+        self.assertEqual(before, {p: p.read_bytes() for p in source.rglob("*.db")})
+
+    def test_full_scope_rejects_directory_alias_before_traversing_it(self):
+        source, _ = self.capture_fixture()
+        external = self.root / "outside"; external.mkdir()
+        try:
+            (source / "external").symlink_to(external, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest(f"Synthetic symlink unavailable: {type(exc).__name__}")
+        with self.assertRaises(reader.ReaderError):
+            live.selected_files(source, scope="all")
+
+    def test_full_scope_records_optional_index_gap_without_waiving_authentication(self):
+        source, _ = self.capture_fixture(scope="all")
+        index = source / "message/message_fts.db"
+        index.write_bytes(self.encrypted_fixture())
+        original_connect = live.connect_read_only
+        def index_logic_error(path):
+            if Path(path).name == "message_fts.db":
+                raise sqlite3.OperationalError("SQL logic error")
+            return original_connect(path)
+        with mock.patch.object(live, "connect_read_only", side_effect=index_logic_error):
+            receipt = self.run_capture_fixture(source, self.root / "vault", scope="all")
+        self.assertEqual(receipt["status"], "complete_with_index_gaps")
+        self.assertEqual(receipt["validation"], "passed_core_with_index_gaps")
+        self.assertEqual([x["database"] for x in receipt["integrity_gaps"]], ["message/message_fts.db"])
+        validation = reader.validate_snapshot(Path(receipt["snapshot"]))
+        self.assertTrue(validation["valid"])
+        self.assertEqual(validation["integrity_gaps"], [{"database": "message/message_fts.db", "check": "unverified"}])
+        damaged = bytearray(index.read_bytes()); damaged[100] ^= 1; index.write_bytes(damaged)
+        with mock.patch.object(live, "connect_read_only", side_effect=index_logic_error):
+            with self.assertRaisesRegex(ValueError, "authentication"):
+                self.run_capture_fixture(source, self.root / "vault-corrupted", scope="all")
+        self.assertFalse((self.root / "vault-corrupted/latest.json").exists())
+
+    def test_full_scope_never_waives_main_database_integrity(self):
+        source, _ = self.capture_fixture(scope="all")
+        original_connect = live.connect_read_only
+        def main_logic_error(path):
+            if Path(path).name == "contact.db":
+                raise sqlite3.OperationalError("SQL logic error")
+            return original_connect(path)
+        vault = self.root / "vault"
+        with mock.patch.object(live, "connect_read_only", side_effect=main_logic_error):
+            with self.assertRaises(sqlite3.OperationalError):
+                self.run_capture_fixture(source, vault, scope="all")
+        self.assertFalse((vault / "latest.json").exists())
+
+    def test_full_scope_missing_required_domain_cannot_publish_latest(self):
+        source, _ = self.capture_fixture(scope="all")
+        favorite = source / "favorite/favorite.db"
+        favorite.rename(favorite.with_suffix(".omitted"))
+        vault = self.root / "vault"
+        with self.assertRaisesRegex(ValueError, "schema"):
+            self.run_capture_fixture(source, vault, scope="all")
+        self.assertFalse((vault / "latest.json").exists())
 
     def test_capture_query_export_overwrite_and_source_immutability(self):
         source, fixture = self.capture_fixture()

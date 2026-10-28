@@ -76,9 +76,10 @@ Mac 微信双开——无需第三方工具，一条命令搞定：
 同一个本地 Skill 支持 macOS 与实验性 Windows 聊天工作流：
 - macOS：微信 Mac 4.x 全量/增量解密，聊天、朋友圈、收藏夹、摘要和漏看/待回复检查
 - Windows：`windows discover/capture` 只读明确选择且已授权的本机账号和签名通过的微信进程，逐页认证/解密聊天库，并结合 WAL 已提交事务生成私密快照
+- 明确要求全量本地库时使用 `windows capture --scope all`，包括收藏、朋友圈和媒体数据库；所有页面仍须认证，已知搜索索引校验缺口会明确返回
 - `snapshot --snapshot <目录>` 验证、查询、搜索和导出明确提供的 Windows 明文快照，不访问运行中的客户端，也不触发 Mac 流程
 - 已在 Windows 11 build 26300 ARM64、AMD64 微信 4.1.15.56、CPython 3.12.10 AMD64 环境完成两条真实新消息、刷新、搜索、Markdown 导出回读及中文路径验收
-- Windows 实测使用已有的桌面管理员令牌；普通非管理员执行、其他版本/客户端架构，以及媒体解密、朋友圈和收藏功能尚未验收或不支持
+- Windows 实测使用已有的桌面管理员令牌；普通非管理员执行、其他版本/客户端架构、媒体文件还原及完整 Mac 工作流对齐尚未验收或不支持，暂未提供专用的 Windows 朋友圈/收藏查询命令
 - 不操作微信界面；Windows 登录和测试消息由用户手动完成
 - Mac 依赖：Python 3.9+、`pycryptodome`、`zstandard`；Windows 使用 CPython 3.12 AMD64、系统 CNG 和固定版本的 `zstandard`
 - 详见 [Skill 说明](./yichen-wechat-local-vault/README.md)、[Windows 本机采集](./yichen-wechat-local-vault/references/windows-live.md)和[离线快照](./yichen-wechat-local-vault/references/windows-snapshot.md)
