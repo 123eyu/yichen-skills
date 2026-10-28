@@ -27,7 +27,7 @@ Join **TradeWinds**, Yichen’s paid community, to unlock commercial authorizati
 
 1. Upload Obsidian/Markdown articles to X Articles drafts (`yichen-x-article-draft-uploader`)
 2. Run two WeChat accounts on one Mac with a distinct blue icon (`yichen-mac-wechat-dual-open`)
-3. Turn macOS/Windows WeChat chats, plus Mac Moments and Favorites, into AI-powered digital assets (`yichen-wechat-local-vault`)
+3. Turn local WeChat chats, Moments, and Favorites into digital assets on macOS and Windows (`yichen-wechat-local-vault`)
 4. Fetch benchmark videos from known Douyin links (`yichen-content-archive`)
 5. Fetch benchmark posts from known Xiaohongshu links (`yichen-content-archive`)
 6. Transcribe, caption, and rough-cut talking-head videos with Volcengine ASR (`yichen-volc-asr`)
@@ -73,16 +73,17 @@ Run two WeChat accounts simultaneously on macOS — no third-party tools:
 
 ### `yichen-wechat-local-vault`
 
-One local Skill for macOS and experimental Windows chat workflows:
-- macOS: full/incremental decryption of WeChat Mac 4.x databases, chats, Moments, Favorites, digests, and missed/reply-pending checks
-- Windows: `windows discover/capture` reads an explicitly selected, authorized local account and signed Weixin process, authenticates/decrypts chat databases, and creates a private snapshot with committed WAL transactions
-- Explicit full local capture uses `windows capture --scope all`, including Favorites, Moments, and media databases; every page must authenticate, and known search-index integrity gaps are reported explicitly
-- `snapshot --snapshot <directory>` validates, queries, searches, and exports an explicit Windows plaintext snapshot without accessing a running client or triggering Mac workflows
-- Real Windows acceptance passed for two newly sent messages, refresh, search, Markdown export/readback, and Unicode output paths on Windows 11 build 26300 ARM64 with AMD64 WeChat 4.1.15.56 and CPython 3.12.10 AMD64
-- Windows acceptance used an existing desktop administrator token; ordinary non-administrator execution, other client versions/architectures, media-file restoration, and complete Mac workflow parity remain unverified or unsupported. Dedicated Windows Moments/Favorites query commands are not included
-- Does not operate the WeChat UI; Windows login and test messages are performed manually by the user
+Unified **full local WeChat data parsing on macOS and Windows**. Windows full-database capture, authenticated decryption, and row-by-row chat parsing are implemented; Favorites and Moments body parsing has also passed real-data acceptance through the bundled shared-function workflow.
+
+- macOS: full/incremental decryption, chats, Moments, Favorites, digests, and missed/reply-pending checks
+- Windows full local capture: `windows capture --scope all --source-id SOURCE_ID` covers all databases in the selected account's local data directory, including Favorites, Moments, media, and search indexes; the default capture scope remains chat databases
+- Windows chat queries: `snapshot --snapshot <directory>` validates, queries, searches, and exports the captured plaintext snapshot. Complete parsing is verified by comparing source rows, parsed rows, and output readback; individual query/export limits are separate
+- Windows Favorites/Moments bodies: use the existing pure functions and read-only snapshot workflow in the [Windows guide](./yichen-wechat-local-vault/references/windows-live.md#朋友圈和收藏正文解析); dedicated query subcommands are not yet packaged
+- Real acceptance covers full local capture, chat parsing, Favorites/Moments bodies, newly arriving messages, and export readback on Windows 11 build 26300 ARM64 with AMD64 WeChat 4.1.15.56 and CPython 3.12.10 AMD64
+- Scope: data already synced to the selected computer. Three known search-index integrity gaps are reported explicitly; media-file restoration, ordinary non-administrator execution, other client versions/architectures, and complete Mac workflow parity still require further work or verification
+- Does not operate the WeChat UI; login and test messages are performed manually by the user. Windows keys remain in memory; plaintext snapshots stay in private local storage
 - Mac dependencies: Python 3.9+, `pycryptodome`, `zstandard`; Windows uses CPython 3.12 AMD64, native Windows CNG, and the pinned `zstandard` dependency
-- See the [Skill README](./yichen-wechat-local-vault/README.md), [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md), and [snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md)
+- See the [Skill README](./yichen-wechat-local-vault/README.md), [Windows full local parsing guide](./yichen-wechat-local-vault/references/windows-live.md), and [offline snapshot guide](./yichen-wechat-local-vault/references/windows-snapshot.md)
 
 ### Social fetchers integrated into `yichen-content-archive`
 The former standalone Douyin and Xiaohongshu fetchers now have one source of truth:
@@ -451,7 +452,7 @@ codex plugin add yichen-grok-consult@yichen-skills
 
 1. Choose the source first: macOS local vault, Windows local acquisition, or an explicit detached Windows plaintext snapshot.
 2. On macOS, install `pycryptodome zstandard`, then ask for chat parsing, export, Moments, or Favorites. The Skill guides the existing Mac setup and workflow selection.
-3. On Windows, use CPython 3.12 AMD64 and the pinned dependency in the [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md). Log in manually, select the authorized source with `windows discover`, and run `windows capture` before querying new messages.
+3. On Windows, use CPython 3.12 AMD64 and the pinned dependency in the [Windows acquisition guide](./yichen-wechat-local-vault/references/windows-live.md). Log in manually, select the authorized source with `windows discover`, and use `windows capture --scope all --source-id SOURCE_ID` for full local capture; the default `capture` scope selects only chat databases.
 4. Use the `snapshot` route for Windows query/search/export. It does not refresh data; capture again when current messages are required.
 5. See the [Skill README](./yichen-wechat-local-vault/README.md) for platform-specific commands, privacy paths, and tested permission/version limits.
 

@@ -1,6 +1,6 @@
 # Windows 离线明文快照模式
 
-此模式适用于用户已授权并明确提供的 Windows 微信明文 SQLite 快照。`snapshot` 已整合在统一 Skill 中，通过 `scripts/vault_cli.py snapshot` 使用。它可以在当前 Mac 上处理离线快照；支持范围仍限于验证器接受的结构，未证明全面兼容真实 Windows 微信 4.x。
+此模式适用于用户已授权并明确提供的 Windows 微信明文 SQLite 快照。`snapshot` 是本 Skill 的子模块，不需要另装 `yichen-wechat-windows-reader`。它可以在 Mac 或 Windows 上处理离线快照；当前已验证 Windows 微信 4.1.15.56 环境的真实采集与聊天解析，以及全库快照中的收藏、朋友圈正文解析，详见 [Windows 本地全量解析](windows-live.md)。其他版本和结构仍须单独验证。
 
 ## 与 Mac 模式的区别
 
@@ -49,6 +49,6 @@ Windows 上可用 `py -3.12` 替换 `python3`，使用 Windows 本地路径。�
 
 来源是 `mcncarl/yichen-skills` 提交 `676e35e8e37cb8dfd87b895b82ac6a1db7debe8c` 中的 Windows reader；原贡献者为 `xuewei-ai`（PR #14），随后维护者通过 PR #15 加固。原始 [仓库许可证](windows-snapshot/REPOSITORY_LICENSE.txt)、[来源说明](windows-snapshot/PROVENANCE.md)、[贡献授权](windows-snapshot/CONTRIBUTOR_GRANT.md)、[依赖声明](windows-snapshot/THIRD_PARTY_NOTICES.md) 和 [上游依赖 SBOM](windows-snapshot/sbom.spdx.json) 原样保留。该 SBOM 是上游 Windows 子模块的依赖记录，不是整个合并后 Skill 的完整清单。
 
-本次本地修改：加入统一 `snapshot` 命令，共用消息表名/字段别名模块，保留两边各自的获取、验证、消息解码及输出语义，并增加路由隔离与 Mac 回归测试。快照 ID 命名空间保留原值，以免同一快照的 ID 在整合后改变。未把实验性 Schema 提升为真实版本兼容承诺。
+本次本地修改：加入统一 `snapshot` 命令，共用消息表名/字段别名模块，保留两边各自的获取、验证、消息解码及输出语义，并增加路由隔离与 Mac 回归测试。快照 ID 命名空间保留原值，以免同一快照的 ID 在整合后改变。真实客户端的已验证范围以 Windows 本机参考为准，不能仅凭合成 Schema 测试推断任意版本兼容。
 
 测试使用人工生成的数据库，保留测试产物，不读取真实账号配置或聊天。运行 `python3 -m unittest discover -s tests -p 'test_*.py' -v`；可用 `YICHEN_WECHAT_TEST_ROOT` 指定持久测试输出目录。

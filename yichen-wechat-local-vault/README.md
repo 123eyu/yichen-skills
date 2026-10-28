@@ -1,6 +1,17 @@
 # yichen-wechat-local-vault
 
-微信本地数字资产库：Mac 4.x 全量/增量解析、实验性 Windows 本机聊天采集与解密，以及 Windows 离线明文快照查询。按来源选择对应工作流。
+微信本地数字资产库，支持 **macOS / Windows 本地全量解析**。Windows 已实现所选账号全部本地数据库的采集和认证解密、聊天主表逐行解析，以及收藏、朋友圈正文解析；Mac 另支持增量刷新、漏看/待回复等工作流。Windows 已实测环境和边界见 [本机全量解析说明](references/windows-live.md)。
+
+这里的“全量”指已经同步到电脑、位于所选账号本地数据目录中的数据库和记录。
+
+| 能力 | macOS | Windows |
+| --- | --- | --- |
+| 本地全库采集、解密 | 已支持 | 已支持，使用 `windows capture --scope all` |
+| 聊天记录解析、查询、搜索、导出 | 已支持 | 已实测逐行解析和回读 |
+| 收藏、朋友圈正文解析 | 已支持 | 已实测，复用包内纯函数工作流 |
+| 漏看、待回复等高级工作流 | 已支持 | 尚未完整对齐 |
+
+Windows 媒体数据库可以采集解密；图片、语音、视频文件本体还原仍需另行适配。三个搜索索引库的 SQLite 校验缺口会明确返回，不影响本次已完成的聊天主表解析。
 
 ## 隐私路径
 
@@ -50,11 +61,11 @@ python3 scripts/export_chat.py --chat-id "contact_username" --since "2025-01-01"
 - `moments`：朋友圈，支持联系人、时间、关键词。
 - `digest-source`：生成群聊摘要素材包，供后续写日报、群聊精华或画像。
 
-## Windows 离线快照
+## Windows 本地全量解析与离线查询
 
 Windows 本机采集使用 `python scripts/vault_cli.py windows discover/capture`，详见 [Windows 本机采集](references/windows-live.md)。它只读明确授权的账号和签名通过的微信进程，在私密应用数据区生成带逐页认证、WAL 提交事务处理及完整性校验的聊天快照；不会操作微信界面。当前已在 Windows 11 ARM64、AMD64 微信 4.1.15.56 环境完成真实采集、解密、新消息刷新及导出回读；版本与权限范围见该参考文档。
 
-明确要求全量本地数据库时，使用 `windows capture --scope all --source-id SOURCE_ID`。它生成包含收藏、朋友圈和媒体数据库的完整核心快照；已知搜索索引的 SQLite 校验缺口会通过 `complete_with_index_gaps` 和 `integrity_gaps` 明确返回，逐页认证仍须全部通过。媒体库解密不等于媒体文件还原，尚未同步到电脑的历史也不在本地解析范围内。
+明确要求全量本地数据库时，使用 `windows capture --scope all --source-id SOURCE_ID`。它生成包含收藏、朋友圈和媒体数据库的完整核心快照；已知搜索索引的 SQLite 校验缺口会通过 `complete_with_index_gaps` 和 `integrity_gaps` 明确返回，逐页认证仍须全部通过。收藏、朋友圈正文按 [共用纯函数工作流](references/windows-live.md#朋友圈和收藏正文解析)读取，暂未单独封装查询子命令。
 
 Windows 来源使用同一个 CLI 的 `snapshot` 子命令，不读取 Mac 配置、不刷新或解密任何数据库：
 
